@@ -10,7 +10,7 @@ from routes import company, endpoints
 
 settings = get_settings()
 
-
+ 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_tables()
