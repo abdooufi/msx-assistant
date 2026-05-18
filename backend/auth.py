@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
+import hmac
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -27,7 +28,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 def authenticate_admin(username: str, password: str) -> bool:
-    return username == settings.admin_username and password == settings.admin_password
+    username_ok = hmac.compare_digest(username.encode(), settings.admin_username.encode())
+    password_ok = hmac.compare_digest(password.encode(), settings.admin_password.encode())
+    return username_ok and password_ok
 
 
 async def get_current_admin(token: str = Depends(oauth2_scheme)) -> str:

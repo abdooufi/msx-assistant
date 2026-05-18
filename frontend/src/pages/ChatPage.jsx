@@ -21,13 +21,29 @@ const STORAGE_KEY  = 'msx_chat_history'
 const SESSION_KEY  = 'msx_session_id'
 const USER_KEY     = 'msx_user_name'
 
-// ─── Render markdown-lite ─────────────────────────────────────────
-function renderContent(text) {
+const MAX_MESSAGE_LENGTH = 2000
+
+function escapeHtml(text) {
   return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+}
+
+function hasArabic(text) {
+  return /[؀-ۿ]/.test(text)
+}
+
+// ─── Render markdown-lite (XSS-safe) ─────────────────────────────
+function renderContent(text) {
+  const safe = escapeHtml(text)
+  return safe
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\[(.*?)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
     .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`)
+    .replace(/(<li>.*?<\/li>\n?)+/g, m => `<ul>${m}</ul>`)
     .replace(/\n/g, '<br />')
 }
 
@@ -70,7 +86,7 @@ function WelcomeScreen({ onSubmit }) {
         >
           Start Chatting →
         </button>
-        <p style={wStyles.hint}>Powered by LocalAI · MSX.om</p>
+        <p style={wStyles.hint}>Muscat Stock Exchange · msx.om</p>
       </div>
     </div>
   )
@@ -156,6 +172,7 @@ export default function ChatPage() {
   const handleSend = async (text) => {
     const message = (text || input).trim()
     if (!message || isLoading) return
+    if (message.length > MAX_MESSAGE_LENGTH) return
 
     const userMsg = { role: 'user', content: message, timestamp: new Date() }
     setMessages(prev => [...prev, userMsg])
@@ -220,7 +237,6 @@ export default function ChatPage() {
               <Trash2 size={14}/> Clear
             </button>
           )}
-          <a href="/admin" style={styles.adminLink}>Admin →</a>
         </div>
       </header>
 
@@ -233,6 +249,7 @@ export default function ChatPage() {
             )}
             <div style={{ maxWidth: '72%' }}>
               <div
+                dir={hasArabic(msg.content) ? 'rtl' : 'ltr'}
                 style={{ ...styles.bubble, ...(msg.role === 'user' ? styles.bubbleUser : styles.bubbleAI) }}
                 dangerouslySetInnerHTML={{ __html: renderContent(msg.content) }}
               />
@@ -301,7 +318,7 @@ export default function ChatPage() {
           <textarea
             ref={inputRef}
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={e => setInput(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
             placeholder="Ask about any MSX-listed company..."
             rows={1}
@@ -317,7 +334,14 @@ export default function ChatPage() {
               : <Send size={18}/>}
           </button>
         </div>
-        <div style={styles.inputHint}>Enter to send · Shift+Enter for new line · Chat saved automatically</div>
+        <div style={styles.inputFooter}>
+          <span style={styles.inputHint}>Enter to send · Shift+Enter for new line</span>
+          {input.length > 0 && (
+            <span style={{ ...styles.inputHint, color: input.length > MAX_MESSAGE_LENGTH * 0.9 ? 'var(--warning)' : 'var(--text-muted)' }}>
+              {input.length}/{MAX_MESSAGE_LENGTH}
+            </span>
+          )}
+        </div>
       </div>
 
       <style>{`
@@ -340,7 +364,6 @@ const styles = {
   headerSub:   { fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 1 },
   dot:         { width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 6px #10b981' },
   clearBtn:    { display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer' },
-  adminLink:   { fontSize: 13, color: 'var(--text-muted)', padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', textDecoration: 'none' },
   messages:    { flex: 1, overflowY: 'auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 16 },
   msgRow:      { display: 'flex', gap: 10, alignItems: 'flex-end' },
   avatar:      { width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-dim)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
@@ -360,5 +383,6 @@ const styles = {
   inputWrapper:{ display: 'flex', gap: 10, alignItems: 'flex-end' },
   textarea:    { flex: 1, resize: 'none', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text)', padding: '11px 14px', fontSize: 14, lineHeight: 1.5, maxHeight: 120, overflowY: 'auto' },
   sendBtn:     { width: 44, height: 44, borderRadius: 12, background: 'var(--accent)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: 'none', cursor: 'pointer' },
-  inputHint:   { marginTop: 6, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' },
+  inputFooter: { marginTop: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  inputHint:   { fontSize: 11, color: 'var(--text-muted)' },
 }

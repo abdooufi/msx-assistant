@@ -1,22 +1,26 @@
 import { useEffect, useState } from 'react'
 import { listFAQs, createFAQ, updateFAQ, deleteFAQ } from '../api'
-import { Plus, Pencil, Trash2, Check, X, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Check, X, ToggleLeft, ToggleRight, Loader2, AlertCircle } from 'lucide-react'
+import { useToast, ToastContainer } from '../components/Toast'
 
 const EMPTY = { question: '', answer: '', category: 'general', is_active: true }
 
 export default function FAQManager() {
   const [faqs, setFaqs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(null)
   const [form, setForm] = useState(EMPTY)
   const [editId, setEditId] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
+  const toast = useToast()
 
   const fetchFAQs = async () => {
     setLoading(true)
+    setFetchError(null)
     try { const r = await listFAQs(); setFaqs(r.data) }
-    catch (e) { console.error(e) }
+    catch (e) { setFetchError('Failed to load FAQs. Please try again.') }
     finally { setLoading(false) }
   }
 
@@ -30,23 +34,33 @@ export default function FAQManager() {
     if (!form.question.trim() || !form.answer.trim()) return
     setSaving(true)
     try {
-      if (editId) { await updateFAQ(editId, form) }
-      else { await createFAQ(form) }
+      if (editId) { await updateFAQ(editId, form); toast.success('FAQ updated') }
+      else { await createFAQ(form); toast.success('FAQ created') }
       await fetchFAQs()
       closeForm()
-    } catch (e) { console.error(e) }
-    finally { setSaving(false) }
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Failed to save FAQ')
+    } finally { setSaving(false) }
   }
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this FAQ?')) return
-    await deleteFAQ(id)
-    setFaqs((prev) => prev.filter((f) => f.id !== id))
+    try {
+      await deleteFAQ(id)
+      setFaqs((prev) => prev.filter((f) => f.id !== id))
+      toast.success('FAQ deleted')
+    } catch (e) {
+      toast.error('Failed to delete FAQ')
+    }
   }
 
   const handleToggle = async (faq) => {
-    await updateFAQ(faq.id, { is_active: !faq.is_active })
-    setFaqs((prev) => prev.map((f) => f.id === faq.id ? { ...f, is_active: !f.is_active } : f))
+    try {
+      await updateFAQ(faq.id, { is_active: !faq.is_active })
+      setFaqs((prev) => prev.map((f) => f.id === faq.id ? { ...f, is_active: !f.is_active } : f))
+    } catch (e) {
+      toast.error('Failed to update FAQ status')
+    }
   }
 
   const filtered = faqs.filter((f) =>
@@ -91,6 +105,12 @@ export default function FAQManager() {
         </div>
       )}
 
+      {fetchError && (
+        <div className="error-banner" style={{ marginBottom: 16 }}>
+          <AlertCircle size={16} /> {fetchError}
+        </div>
+      )}
+
       {loading ? (
         <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 40 }}>Loading...</div>
       ) : filtered.length === 0 ? (
@@ -125,6 +145,7 @@ export default function FAQManager() {
         </div>
       )}
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <ToastContainer toasts={toast.toasts} onDismiss={toast.dismiss} />
     </div>
   )
 }
