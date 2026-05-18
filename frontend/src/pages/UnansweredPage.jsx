@@ -1,34 +1,48 @@
 import { useEffect, useState } from 'react'
 import { listUnanswered, updateUnanswered, deleteUnanswered } from '../api'
-import { Trash2, CheckCircle, Eye, MessageSquare } from 'lucide-react'
+import { Trash2, CheckCircle, Eye, MessageSquare, AlertCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { useToast, ToastContainer } from '../components/Toast'
 
 const STATUS_TABS = ['pending', 'reviewed', 'answered']
 
 export default function UnansweredPage() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(null)
   const [tab, setTab] = useState('pending')
   const [noteMap, setNoteMap] = useState({})
+  const toast = useToast()
 
   const fetchItems = async () => {
     setLoading(true)
+    setFetchError(null)
     try { const r = await listUnanswered({ status: tab }); setItems(r.data) }
-    catch (e) { console.error(e) }
+    catch (e) { setFetchError('Failed to load questions. Please try again.') }
     finally { setLoading(false) }
   }
 
   useEffect(() => { fetchItems() }, [tab])
 
   const handleUpdate = async (id, data) => {
-    await updateUnanswered(id, data)
-    fetchItems()
+    try {
+      await updateUnanswered(id, data)
+      toast.success(data.status ? `Marked as ${data.status}` : 'Note saved')
+      fetchItems()
+    } catch (e) {
+      toast.error('Failed to update question')
+    }
   }
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this entry?')) return
-    await deleteUnanswered(id)
-    setItems((prev) => prev.filter((i) => i.id !== id))
+    try {
+      await deleteUnanswered(id)
+      setItems((prev) => prev.filter((i) => i.id !== id))
+      toast.success('Entry deleted')
+    } catch (e) {
+      toast.error('Failed to delete entry')
+    }
   }
 
   return (
@@ -46,6 +60,12 @@ export default function UnansweredPage() {
           </button>
         ))}
       </div>
+
+      {fetchError && (
+        <div className="error-banner" style={{ marginBottom: 16 }}>
+          <AlertCircle size={16} /> {fetchError}
+        </div>
+      )}
 
       {loading ? (
         <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 40 }}>Loading...</div>
@@ -103,6 +123,7 @@ export default function UnansweredPage() {
           ))}
         </div>
       )}
+      <ToastContainer toasts={toast.toasts} onDismiss={toast.dismiss} />
     </div>
   )
 }

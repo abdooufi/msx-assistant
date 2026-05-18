@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from models import AdminStats, Conversation, UnansweredQuestion, FAQ, KnowledgeBase
 from database import get_db
 from auth import get_current_admin
@@ -16,9 +16,12 @@ async def get_stats(db: AsyncSession = Depends(get_db), _: str = Depends(get_cur
     faq_count           = (await db.execute(select(func.count()).select_from(FAQ))).scalar()
     knowledge_count     = (await db.execute(select(func.count()).select_from(KnowledgeBase))).scalar()
 
-    convs = (await db.execute(select(Conversation))).scalars().all()
-    total_messages = sum(len(c.messages or []) for c in convs)
+    msg_count_row = await db.execute(
+        text("SELECT COALESCE(SUM(jsonb_array_length(COALESCE(messages, '[]')::jsonb)), 0) FROM conversations")
+    )
+    total_messages = int(msg_count_row.scalar() or 0)
 
+    convs = (await db.execute(select(Conversation))).scalars().all()
     classification_breakdown = {}
     for conv in convs:
         for msg in (conv.messages or []):

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getStats } from '../api'
-import { MessageSquare, BookOpen, HelpCircle, AlertCircle, TrendingUp, RefreshCw } from 'lucide-react'
+import { MessageSquare, BookOpen, HelpCircle, AlertCircle, TrendingUp, RefreshCw, XCircle } from 'lucide-react'
 
 const StatCard = ({ icon: Icon, label, value, color = 'var(--accent)' }) => (
   <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -19,14 +19,18 @@ const CLASS_COLORS = { support: '#00c5ff', sales: '#10b981', complaint: '#ef4444
 export default function Dashboard() {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [lastRefreshed, setLastRefreshed] = useState(null)
 
   const fetchStats = async () => {
     setLoading(true)
+    setError(null)
     try {
       const res = await getStats()
       setStats(res.data)
+      setLastRefreshed(new Date())
     } catch (e) {
-      console.error(e)
+      setError(e.response?.data?.detail || 'Failed to load statistics. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -39,16 +43,29 @@ export default function Dashboard() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700 }}>Dashboard</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>Overview of MSX Assistant activity</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>
+            Overview of MSX Assistant activity
+            {lastRefreshed && (
+              <span style={{ marginLeft: 8 }}>
+                · Updated {lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+          </p>
         </div>
-        <button className="btn btn-ghost" onClick={fetchStats}>
-          <RefreshCw size={14} /> Refresh
+        <button className="btn btn-ghost" onClick={fetchStats} disabled={loading}>
+          <RefreshCw size={14} style={loading ? { animation: 'spin 1s linear infinite' } : {}} /> Refresh
         </button>
       </div>
 
+      {error && (
+        <div className="error-banner" style={{ marginBottom: 24 }}>
+          <XCircle size={16} /> {error}
+        </div>
+      )}
+
       {loading ? (
         <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 60 }}>Loading stats...</div>
-      ) : (
+      ) : !error && (
         <>
           {/* Stat cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
@@ -105,6 +122,7 @@ export default function Dashboard() {
           </div>
         </>
       )}
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }

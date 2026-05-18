@@ -1,23 +1,27 @@
 import { useEffect, useState } from 'react'
 import { listKnowledge, createKnowledge, updateKnowledge, deleteKnowledge } from '../api'
-import { Plus, Pencil, Trash2, Check, X, Tag, Loader2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Check, X, Tag, Loader2, AlertCircle } from 'lucide-react'
+import { useToast, ToastContainer } from '../components/Toast'
 
 const EMPTY = { title: '', content: '', category: 'general', tags: [], source: '' }
 
 export default function KnowledgeManager() {
   const [docs, setDocs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(null)
   const [form, setForm] = useState(EMPTY)
   const [tagInput, setTagInput] = useState('')
   const [editId, setEditId] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
+  const toast = useToast()
 
   const fetchDocs = async () => {
     setLoading(true)
+    setFetchError(null)
     try { const r = await listKnowledge({ limit: 100 }); setDocs(r.data) }
-    catch (e) { console.error(e) }
+    catch (e) { setFetchError('Failed to load articles. Please try again.') }
     finally { setLoading(false) }
   }
 
@@ -44,18 +48,24 @@ export default function KnowledgeManager() {
     if (!form.title.trim() || !form.content.trim()) return
     setSaving(true)
     try {
-      if (editId) { await updateKnowledge(editId, form) }
-      else { await createKnowledge(form) }
+      if (editId) { await updateKnowledge(editId, form); toast.success('Article updated') }
+      else { await createKnowledge(form); toast.success('Article created') }
       await fetchDocs()
       closeForm()
-    } catch (e) { console.error(e) }
-    finally { setSaving(false) }
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Failed to save article')
+    } finally { setSaving(false) }
   }
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this article?')) return
-    await deleteKnowledge(id)
-    setDocs((prev) => prev.filter((d) => d.id !== id))
+    try {
+      await deleteKnowledge(id)
+      setDocs((prev) => prev.filter((d) => d.id !== id))
+      toast.success('Article deleted')
+    } catch (e) {
+      toast.error('Failed to delete article')
+    }
   }
 
   const filtered = docs.filter((d) =>
@@ -110,6 +120,12 @@ export default function KnowledgeManager() {
         </div>
       )}
 
+      {fetchError && (
+        <div className="error-banner" style={{ marginBottom: 16 }}>
+          <AlertCircle size={16} /> {fetchError}
+        </div>
+      )}
+
       {loading ? (
         <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 40 }}>Loading...</div>
       ) : filtered.length === 0 ? (
@@ -142,6 +158,7 @@ export default function KnowledgeManager() {
         </div>
       )}
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <ToastContainer toasts={toast.toasts} onDismiss={toast.dismiss} />
     </div>
   )
 }

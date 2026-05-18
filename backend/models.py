@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Text, Boolean, DateTime, Float, JSON, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from database import Base
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List, Literal
 from datetime import datetime
 import uuid
@@ -113,6 +113,21 @@ class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
     history: List[ChatMessage] = []
+
+    @field_validator('message')
+    @classmethod
+    def validate_message(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError('Message cannot be empty')
+        if len(v) > 2000:
+            raise ValueError('Message too long (max 2000 characters)')
+        return v
+
+    @field_validator('history')
+    @classmethod
+    def limit_history(cls, v: list) -> list:
+        return v[-20:] if len(v) > 20 else v
 
 class ChatResponse(BaseModel):
     reply: str
