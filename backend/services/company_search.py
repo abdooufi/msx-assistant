@@ -106,14 +106,26 @@ def _mssql_conn():
     import pyodbc
     from config import get_settings
     s = get_settings()
-    return pyodbc.connect(
-        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-        f"SERVER={s.mssql_server},{s.mssql_port};"
-        f"DATABASE={s.mssql_database};"
-        f"UID={s.mssql_username};PWD={s.mssql_password};"
-        f"TrustServerCertificate=yes;Encrypt=yes;",
-        timeout=10
-    )
+    drivers = [
+        "ODBC Driver 18 for SQL Server",
+        "ODBC Driver 17 for SQL Server",
+        "ODBC Driver 13 for SQL Server",
+        "SQL Server",
+    ]
+    last_err = None
+    for driver in drivers:
+        try:
+            return pyodbc.connect(
+                f"DRIVER={{{driver}}};"
+                f"SERVER={s.mssql_server},{s.mssql_port};"
+                f"DATABASE={s.mssql_database};"
+                f"UID={s.mssql_username};PWD={s.mssql_password};"
+                f"TrustServerCertificate=yes;Encrypt=yes;",
+                timeout=10
+            )
+        except pyodbc.Error as e:
+            last_err = e
+    raise last_err
 
 
 def _search_mssql(query: str) -> Optional[dict]:
