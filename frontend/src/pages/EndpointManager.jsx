@@ -116,7 +116,9 @@ export default function EndpointManager() {
       setTestResults(prev => ({ ...prev, [ep.id]: r.data }))
       setExpanded(prev => ({ ...prev, [ep.id]: true }))
     } catch (e) {
-      setTestResults(prev => ({ ...prev, [ep.id]: { error: e.response?.data?.detail || 'Test failed' } }))
+      const msg = e.response?.data?.detail || e.message || 'Test failed'
+      setTestResults(prev => ({ ...prev, [ep.id]: { error: msg } }))
+      setExpanded(prev => ({ ...prev, [ep.id]: true }))
     } finally { setTestingId(null) }
   }
 

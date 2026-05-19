@@ -115,5 +115,11 @@ async def test_endpoint(
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
     from services.dynamic_api import call_endpoint
-    data = await call_endpoint(ep, symbol=symbol)
-    return {"endpoint": ep.name, "symbol": symbol, "result": data}
+    try:
+        data = await call_endpoint(ep, symbol=symbol)
+        if data is None:
+            return {"endpoint": ep.name, "symbol": symbol, "result": None,
+                    "warning": "Endpoint returned no data — check the URL, method, and body template"}
+        return {"endpoint": ep.name, "symbol": symbol, "result": data}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Endpoint call failed: {e}")
