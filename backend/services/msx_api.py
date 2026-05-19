@@ -193,13 +193,11 @@ async def get_notifications_center() -> Optional[Any]:
     return data
 
 
-async def get_snap_special_trades(symbol: str, year: Optional[int] = None) -> Optional[Any]:
-    """POST snapshot.aspx/SnapSpecialTrades — special trades for a symbol."""
-    import datetime as _dt
-    yr = str(year or _dt.date.today().year)
+async def get_snap_special_trades(symbol: str) -> Optional[Any]:
+    """POST snapshot.aspx/SnapSpecialTrades — today's special trades for a symbol."""
     return await _cached_post(
-        f"special_trades_{yr}", "snapshot.aspx/SnapSpecialTrades",
-        {"Symbol": symbol.upper(), "Year": yr},
+        "special_trades", "snapshot.aspx/SnapSpecialTrades",
+        {"Symbol": symbol.lower()},
     )
 
 

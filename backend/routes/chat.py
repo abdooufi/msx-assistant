@@ -55,17 +55,15 @@ def _format_noti_items(items: list, label: str) -> str:
 
 
 def _format_snap_special_trades(symbol: str, data: list) -> str:
-    lines = [f"📊 Special Trades for {symbol.upper()} (from MSX SnapSpecialTrades):\n"]
+    lines = [f"📊 Special Trades for {symbol.upper()} today (from MSX):\n"]
     for item in data[:20]:
         if not isinstance(item, dict):
             continue
-        parts = []
-        for k in ("TradeDate", "TradeTime", "Price", "Quantity", "Value", "BuyerBroker", "SellerBroker"):
-            v = item.get(k)
-            if v not in (None, "", "0", 0):
-                parts.append(f"{k}: {v}")
-        if parts:
-            lines.append("• " + " | ".join(parts))
+        time   = item.get("Time", "")
+        price  = item.get("LTP", "")
+        volume = item.get("Volume", "")
+        if time or price or volume:
+            lines.append(f"• Time: {time} | Price: {price} | Volume: {volume}")
     return "\n".join(lines) if len(lines) > 1 else ""
 
 
@@ -73,7 +71,7 @@ async def _fetch_notifications_context(symbol: Optional[str], noti_type: Optiona
     """
     Try GetNotificationsCenter first, then SnapSpecialTrades as fallback for special trade queries.
     """
-    from services.msx_api import get_notifications_center, get_snap_special_trades
+    from services.msx_api import get_notifications_center
     label = _NOTI_TYPE_LABELS.get(noti_type, "Notification") if noti_type else "Notification"
 
     # ── Step A: GetNotificationsCenter (real-time feed) ──────────────
@@ -98,6 +96,7 @@ async def _fetch_notifications_context(symbol: Optional[str], noti_type: Optiona
     # ── Step B: SnapSpecialTrades fallback (for special trade queries) ──
     if noti_type == "4" and symbol:
         try:
+            from services.msx_api import get_snap_special_trades
             snap = await get_snap_special_trades(symbol)
             if snap and isinstance(snap, list) and len(snap) > 0:
                 ctx = _format_snap_special_trades(symbol, snap)
