@@ -27,6 +27,10 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     # 1. Detect company symbol
     symbol = detect_company_query(message)
 
+    # Detect if query is specifically about board/management info
+    _board_keywords = {'chairman','board','director','secretary','management','ceo','coo','members','deputy'}
+    is_board_query  = any(kw in message.lower() for kw in _board_keywords)
+
     # 2. If company detected → try dynamic endpoints first
     if symbol:
         dynamic_ctx = await fetch_dynamic_data_with_parser(db, message, symbol)
@@ -43,9 +47,21 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
             source     = "knowledge_base"
             references = [f"MSX.om: {symbol}"]
 
-    # 4. Fall back to FAQ / knowledge base
+    # 4. Fall back to FAQ / knowledge base / RAG
     if not context:
         context, source, references = await build_context(db, message)
+
+    # 5. Board/management queries: always supplement with RAG (scraped snapshot pages
+    #    contain chairman/board info that dynamic APIs and MSSQL do not provide)
+    elif is_board_query:
+        try:
+            from services.rag import search_rag
+            rag_ctx, rag_srcs, _ = await search_rag(message)
+            if rag_ctx:
+                context = context + "\n\n" + rag_ctx if context else rag_ctx
+                references = list(dict.fromkeys(references + rag_srcs[:2]))
+        except Exception as e:
+            print(f"⚠️ RAG supplement error: {e}")
 
     # 5. Query LocalAI
     try:

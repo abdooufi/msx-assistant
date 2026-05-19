@@ -37,7 +37,13 @@ def detect_company_query(message: str) -> Optional[str]:
         'ABOUT','INFO','THIS','THAT','HAVE','DOES','WILL','YOUR',
         'THEIR','HELP','NEED','WANT','PLEASE','THANK','HELLO','GOOD',
         'LIST','MOST','LAST','NEXT','BEST','MORE','LESS','MANY','THE',
-        'SURE','JUST','SOME','MUCH','VERY','ALSO','ONLY','THEN','THAN'
+        'SURE','JUST','SOME','MUCH','VERY','ALSO','ONLY','THEN','THAN',
+        # Common English words that look like tickers
+        'AND','FOR','NOT','ARE','WAS','HAS','HAD','ITS','OUR','ALL',
+        'ANY','BUT','CAN','MAY','WHO','HOW','WHY','NEW','OLD','TOP',
+        'CEO','COO','CFO','EVP','SVP','INC','LTD','LLC','PLC',
+        # Board/management keywords that are not tickers
+        'BOARD','CHAIR','VICE','EXEC','DIRECTOR','CHAIRMAN','DEPUTY',
     }
     tickers = re.findall(r'\b([A-Z]{3,6})\b', message)
     for t in tickers:
