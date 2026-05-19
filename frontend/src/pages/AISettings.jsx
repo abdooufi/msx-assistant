@@ -86,7 +86,7 @@ export default function AISettings() {
 
   return (
     <div style={{ maxWidth: 640 }}>
-      <ToastContainer/>
+      <ToastContainer toasts={toast.toasts} onDismiss={toast.dismiss}/>
 
       <h2 style={s.heading}>AI Provider Settings</h2>
       <p style={s.sub}>Choose which AI backend powers the chatbot. Changes take effect immediately.</p>
