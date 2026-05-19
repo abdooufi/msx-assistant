@@ -76,7 +76,7 @@ def load_qdrant():
     # Probe embedding dimension from first chunk
     print(f"\n🔍 Probing embedding dimension...")
     try:
-        sample_vec = get_embedding("test", settings.embedding_model, settings.LOCALAI_BASE_URL)
+        sample_vec = get_embedding("test", settings.embedding_model, settings.localai_base_url)
         dim = len(sample_vec)
         print(f"   Embedding dimension: {dim}")
     except Exception as e:
