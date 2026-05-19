@@ -98,7 +98,7 @@ export default function AISettings() {
           const active  = form.provider === p.id
           return (
             <button key={p.id} onClick={() => setForm(f => ({ ...f, provider: p.id }))}
-              style={{ ...s.providerCard, ...(active ? { borderColor: p.color, background: p.color + '14' } : {}) }}>
+              style={{ ...s.providerCard, ...(active ? { border: `1.5px solid ${p.color}`, background: p.color + '14' } : {}) }}>
               <div style={{ ...s.providerIcon, background: p.color + '22', color: p.color }}>
                 <Icon size={20}/>
               </div>
