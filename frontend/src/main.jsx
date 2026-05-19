@@ -12,6 +12,7 @@ import UnansweredPage   from './pages/UnansweredPage'
 import CompanyManager   from './pages/CompanyManager'
 import EndpointManager  from './pages/EndpointManager'
 import CacheManager     from './pages/CacheManager'
+import AISettings       from './pages/AISettings'
 import ProtectedRoute   from './components/ProtectedRoute'
 import './index.css'
 
@@ -29,8 +30,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="knowledge"  element={<KnowledgeManager/>}/>
             <Route path="companies"  element={<CompanyManager/>}/>
             <Route path="endpoints"  element={<EndpointManager/>}/>
-            <Route path="cache"      element={<CacheManager/>}/>
-            <Route path="unanswered" element={<UnansweredPage/>}/>
+            <Route path="cache"        element={<CacheManager/>}/>
+            <Route path="unanswered"   element={<UnansweredPage/>}/>
+            <Route path="ai-settings"  element={<AISettings/>}/>
           </Route>
           <Route path="*" element={<Navigate to="/" replace/>}/>
         </Routes>

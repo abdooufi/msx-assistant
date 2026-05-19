@@ -2,17 +2,18 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   Bot, LayoutDashboard, MessageSquareOff, BookOpen,
-  HelpCircle, LogOut, ExternalLink, Building2, Plug, Database
+  HelpCircle, LogOut, ExternalLink, Building2, Plug, Database, Settings2
 } from 'lucide-react'
 
 const NAV = [
-  { to: '/admin/dashboard',  icon: LayoutDashboard,  label: 'Dashboard' },
-  { to: '/admin/faq',        icon: HelpCircle,        label: 'FAQ Manager' },
-  { to: '/admin/knowledge',  icon: BookOpen,          label: 'Knowledge Base' },
-  { to: '/admin/companies',  icon: Building2,         label: 'Companies' },
-  { to: '/admin/endpoints',  icon: Plug,              label: 'API Endpoints' },
-  { to: '/admin/cache',      icon: Database,          label: 'Cache Manager' },
-  { to: '/admin/unanswered', icon: MessageSquareOff,  label: 'Unanswered' },
+  { to: '/admin/dashboard',   icon: LayoutDashboard,  label: 'Dashboard' },
+  { to: '/admin/faq',         icon: HelpCircle,        label: 'FAQ Manager' },
+  { to: '/admin/knowledge',   icon: BookOpen,          label: 'Knowledge Base' },
+  { to: '/admin/companies',   icon: Building2,         label: 'Companies' },
+  { to: '/admin/endpoints',   icon: Plug,              label: 'API Endpoints' },
+  { to: '/admin/cache',       icon: Database,          label: 'Cache Manager' },
+  { to: '/admin/unanswered',  icon: MessageSquareOff,  label: 'Unanswered' },
+  { to: '/admin/ai-settings', icon: Settings2,         label: 'AI Provider' },
 ]
 
 export default function AdminLayout() {

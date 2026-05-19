@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
-from models import AdminStats, Conversation, UnansweredQuestion, FAQ, KnowledgeBase
+from models import AdminStats, Conversation, UnansweredQuestion, FAQ, KnowledgeBase, SystemSetting, AIProviderConfig
 from database import get_db
 from auth import get_current_admin
 from typing import Optional
+from datetime import datetime
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -87,3 +88,61 @@ async def clear_all_cache(_: str = Depends(get_current_admin)):
     from cache import cache_delete_pattern
     count = await cache_delete_pattern("msx:*")
     return {"cleared": count, "message": f"Cleared {count} total cache entries"}
+
+
+# ─── AI Provider Settings ─────────────────────────────────────────
+
+_PROVIDER_KEYS = ["ai_provider", "deepseek_api_key", "deepseek_model", "deepseek_base_url"]
+
+
+@router.get("/ai-settings")
+async def get_ai_settings(db: AsyncSession = Depends(get_db), _: str = Depends(get_current_admin)):
+    rows = (await db.execute(select(SystemSetting).where(SystemSetting.key.in_(_PROVIDER_KEYS)))).scalars().all()
+    kv   = {r.key: r.value for r in rows}
+    return {
+        "provider":          kv.get("ai_provider",       "ollama"),
+        "deepseek_api_key":  kv.get("deepseek_api_key",  ""),
+        "deepseek_model":    kv.get("deepseek_model",    "deepseek-chat"),
+        "deepseek_base_url": kv.get("deepseek_base_url", "https://api.deepseek.com/v1"),
+    }
+
+
+@router.post("/ai-settings")
+async def save_ai_settings(cfg: AIProviderConfig, db: AsyncSession = Depends(get_db), _: str = Depends(get_current_admin)):
+    updates = {
+        "ai_provider":       cfg.provider,
+        "deepseek_api_key":  cfg.deepseek_api_key or "",
+        "deepseek_model":    cfg.deepseek_model,
+        "deepseek_base_url": cfg.deepseek_base_url,
+    }
+    for key, value in updates.items():
+        row = (await db.execute(select(SystemSetting).where(SystemSetting.key == key))).scalar_one_or_none()
+        if row:
+            row.value      = value
+            row.updated_at = datetime.utcnow()
+        else:
+            db.add(SystemSetting(key=key, value=value))
+    await db.commit()
+
+    # Invalidate in-memory provider cache so next request picks up new settings
+    from services.localai import invalidate_provider_cache
+    invalidate_provider_cache()
+
+    return {"ok": True, "provider": cfg.provider}
+
+
+@router.post("/ai-settings/test")
+async def test_ai_connection(db: AsyncSession = Depends(get_db), _: str = Depends(get_current_admin)):
+    """Send a quick ping to the active provider to verify connectivity."""
+    from services.localai import _load_provider_config, _call_model
+    cfg = await _load_provider_config()
+    provider = cfg.get("provider", "ollama")
+    model    = cfg.get("deepseek_model", "deepseek-chat") if provider == "deepseek" else "qwen2.5:7b"
+    try:
+        reply = await _call_model(model, [
+            {"role": "system", "content": "Reply with only: OK"},
+            {"role": "user",   "content": "ping"},
+        ], cfg)
+        return {"ok": True, "provider": provider, "model": model, "reply": reply[:80]}
+    except Exception as e:
+        return {"ok": False, "provider": provider, "error": str(e)}

@@ -7,6 +7,14 @@ from datetime import datetime
 import uuid
 
 
+class SystemSetting(Base):
+    """Key-value store for runtime-configurable settings (e.g. active AI provider)."""
+    __tablename__ = "system_settings"
+    key        = Column(String(100), primary_key=True)
+    value      = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 # ─── SQLAlchemy ORM Models (DB Tables) ───────────────────────────
 
 class KnowledgeBase(Base):
@@ -281,3 +289,12 @@ class ApiEndpointDoc(BaseModel):
     created_at: datetime
     updated_at: datetime
     model_config = {"from_attributes": True}
+
+
+# ─── AI Provider Settings ─────────────────────────────────────────
+
+class AIProviderConfig(BaseModel):
+    provider: Literal["ollama", "deepseek"] = "ollama"
+    deepseek_api_key: Optional[str] = None
+    deepseek_model: str = "deepseek-chat"
+    deepseek_base_url: str = "https://api.deepseek.com/v1"
