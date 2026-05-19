@@ -183,6 +183,12 @@ async def get_snap_major_shareholders(symbol: str) -> Optional[Any]:
     return await _post("snapshot.aspx/SnapMajorShareholders", {"Symbol": symbol.upper()})
 
 
+async def get_notifications_center() -> Optional[Any]:
+    """GET api.aspx/GetNotificationsCenter — recent news, special trades, publications."""
+    return await _cached_get("notifications", "ALL",
+                              f"{BASE}/api.aspx/GetNotificationsCenter")
+
+
 async def get_snap_ownership_structure(symbol: str) -> Optional[Any]:
     """
     Fetch ownership structure including:
