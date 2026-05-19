@@ -9,27 +9,43 @@ from config import get_settings
 settings = get_settings()
 
 
+_ODBC_DRIVERS = [
+    "ODBC Driver 18 for SQL Server",
+    "ODBC Driver 17 for SQL Server",
+    "ODBC Driver 13 for SQL Server",
+    "SQL Server",
+]
+
+
 def get_mssql_connection():
-    conn_str = (
-        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-        f"SERVER={settings.mssql_server},{settings.mssql_port};"
-        f"DATABASE={settings.mssql_database};"
-        f"UID={settings.mssql_username};"
-        f"PWD={settings.mssql_password};"
-        f"TrustServerCertificate=yes;"
-        f"Encrypt=yes;"
-    )
-    return pyodbc.connect(conn_str, timeout=10)
+    s = settings
+    last_err = None
+    for driver in _ODBC_DRIVERS:
+        try:
+            conn_str = (
+                f"DRIVER={{{driver}}};"
+                f"SERVER={s.mssql_server},{s.mssql_port};"
+                f"DATABASE={s.mssql_database};"
+                f"UID={s.mssql_username};"
+                f"PWD={s.mssql_password};"
+                f"TrustServerCertificate=yes;"
+                f"Encrypt=yes;"
+            )
+            return pyodbc.connect(conn_str, timeout=10)
+        except pyodbc.Error as e:
+            last_err = e
+    raise last_err
 
 
-def test_mssql_connection() -> bool:
+def test_mssql_connection() -> tuple[bool, str]:
+    """Returns (ok, message)."""
     try:
         conn = get_mssql_connection()
         conn.close()
-        return True
+        return True, "connected"
     except Exception as e:
-        print(f"⚠️ MSSQL connection failed: {e}")
-        return False
+        msg = str(e).splitlines()[0]  # first line is the most useful part
+        return False, msg
 
 
 def search_companies(query: str, limit: int = 20) -> List[Dict]:

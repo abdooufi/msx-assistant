@@ -37,7 +37,13 @@ def detect_company_query(message: str) -> Optional[str]:
         'ABOUT','INFO','THIS','THAT','HAVE','DOES','WILL','YOUR',
         'THEIR','HELP','NEED','WANT','PLEASE','THANK','HELLO','GOOD',
         'LIST','MOST','LAST','NEXT','BEST','MORE','LESS','MANY','THE',
-        'SURE','JUST','SOME','MUCH','VERY','ALSO','ONLY','THEN','THAN'
+        'SURE','JUST','SOME','MUCH','VERY','ALSO','ONLY','THEN','THAN',
+        # Common English words that look like tickers
+        'AND','FOR','NOT','ARE','WAS','HAS','HAD','ITS','OUR','ALL',
+        'ANY','BUT','CAN','MAY','WHO','HOW','WHY','NEW','OLD','TOP',
+        'CEO','COO','CFO','EVP','SVP','INC','LTD','LLC','PLC',
+        # Board/management keywords that are not tickers
+        'BOARD','CHAIR','VICE','EXEC','DIRECTOR','CHAIRMAN','DEPUTY',
     }
     tickers = re.findall(r'\b([A-Z]{3,6})\b', message)
     for t in tickers:
@@ -106,14 +112,26 @@ def _mssql_conn():
     import pyodbc
     from config import get_settings
     s = get_settings()
-    return pyodbc.connect(
-        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-        f"SERVER={s.mssql_server},{s.mssql_port};"
-        f"DATABASE={s.mssql_database};"
-        f"UID={s.mssql_username};PWD={s.mssql_password};"
-        f"TrustServerCertificate=yes;Encrypt=yes;",
-        timeout=10
-    )
+    drivers = [
+        "ODBC Driver 18 for SQL Server",
+        "ODBC Driver 17 for SQL Server",
+        "ODBC Driver 13 for SQL Server",
+        "SQL Server",
+    ]
+    last_err = None
+    for driver in drivers:
+        try:
+            return pyodbc.connect(
+                f"DRIVER={{{driver}}};"
+                f"SERVER={s.mssql_server},{s.mssql_port};"
+                f"DATABASE={s.mssql_database};"
+                f"UID={s.mssql_username};PWD={s.mssql_password};"
+                f"TrustServerCertificate=yes;Encrypt=yes;",
+                timeout=10
+            )
+        except pyodbc.Error as e:
+            last_err = e
+    raise last_err
 
 
 def _search_mssql(query: str) -> Optional[dict]:

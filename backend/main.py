@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import asyncio
 
 from config import get_settings
 from database import create_tables, close_db
@@ -10,11 +11,30 @@ from routes import company, endpoints
 
 settings = get_settings()
 
- 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_tables()
-    await get_redis()  # Connect to Redis (optional — won't crash if unavailable)
+    await get_redis()  # Redis is optional — won't crash if unavailable
+
+    # Qdrant startup check (informational only — app runs without it)
+    try:
+        from services.rag import _get_qdrant
+        _get_qdrant()
+    except Exception as e:
+        print(f"⚠️  Qdrant check error: {e}")
+
+    # MSSQL startup check (informational only — app runs without it)
+    try:
+        from mssql import test_mssql_connection
+        ok, msg = await asyncio.get_event_loop().run_in_executor(None, test_mssql_connection)
+        if ok:
+            print(f"✅ MSSQL connected ({settings.mssql_server})")
+        else:
+            print(f"⚠️  MSSQL unavailable — company queries will be limited: {msg}")
+    except Exception as e:
+        print(f"⚠️  MSSQL check error: {e}")
+
     print(f"🚀 {settings.app_name} v{settings.app_version} started")
     yield
     await close_redis()
@@ -30,10 +50,10 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(auth.router)
@@ -53,5 +73,11 @@ async def root():
 @app.get("/health")
 async def health():
     from cache import get_cache_stats
+    from mssql import test_mssql_connection
     cache = await get_cache_stats()
-    return {"status": "ok", "cache": cache.get("status", "unknown")}
+    mssql_ok, mssql_msg = await asyncio.get_event_loop().run_in_executor(None, test_mssql_connection)
+    return {
+        "status": "ok",
+        "cache": cache.get("status", "unknown"),
+        "mssql": "connected" if mssql_ok else f"unavailable: {mssql_msg}",
+    }

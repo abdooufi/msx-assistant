@@ -103,10 +103,10 @@ async def mssql_health(_: str = Depends(get_current_admin)):
     """Test MSSQL connection."""
     try:
         from mssql import test_mssql_connection
-        ok = await _run_sync(test_mssql_connection)
-        return {"mssql": "connected" if ok else "failed"}
+        ok, msg = await _run_sync(test_mssql_connection)
+        return {"mssql": "connected" if ok else "failed", "detail": msg}
     except Exception as e:
-        return {"mssql": "failed", "error": str(e)}
+        return {"mssql": "failed", "detail": str(e)}
 
 
 # ─── MSX.om API endpoints ─────────────────────────────────────────
