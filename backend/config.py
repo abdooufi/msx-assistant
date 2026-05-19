@@ -25,9 +25,9 @@ class Settings(BaseSettings):
     localai_model_fast:      str = "qwen2.5:7b"
     localai_model_analysis:  str = "qwen2.5:7b"
 
-    # RAG / ChromaDB (from msx_rag_project)
-    chroma_db_path:    str = "./msx_chroma_db"
-    chroma_collection: str = "msx_data"
+    # RAG / Qdrant
+    qdrant_url:        str = "http://localhost:6333"
+    qdrant_collection: str = "msx_data"
     embedding_model:   str = "nomic-embed-text"
 
     # Auth

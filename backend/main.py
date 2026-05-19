@@ -17,6 +17,13 @@ async def lifespan(app: FastAPI):
     await create_tables()
     await get_redis()  # Redis is optional — won't crash if unavailable
 
+    # Qdrant startup check (informational only — app runs without it)
+    try:
+        from services.rag import _get_qdrant
+        _get_qdrant()
+    except Exception as e:
+        print(f"⚠️  Qdrant check error: {e}")
+
     # MSSQL startup check (informational only — app runs without it)
     try:
         from mssql import test_mssql_connection

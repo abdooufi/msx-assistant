@@ -1,9 +1,9 @@
 """
-Unified retrieval service:
+Unified retrieval service.
 Priority order:
 1. FAQ table (PostgreSQL) — exact matches
 2. Knowledge Base table (PostgreSQL) — scraped MSX pages
-3. ChromaDB RAG — semantic vector search
+3. Qdrant RAG — semantic vector search (embedding via Ollama)
 4. JSON keyword search — fallback
 """
 from typing import Optional, List, Tuple
@@ -69,13 +69,13 @@ async def build_context(db: AsyncSession, query: str) -> Tuple[Optional[str], st
             refs.append(doc.title)
         return "\n\n".join(parts), "knowledge_base", refs
 
-    # 3. ChromaDB RAG / JSON keyword search
+    # 3. Qdrant RAG / JSON keyword search
     try:
         from services.rag import search_rag
-        context, sources, method = search_rag(query)
+        context, sources, method = await search_rag(query)
         if context:
             refs  = sources[:3]
-            label = "ChromaDB" if method == "chromadb" else "MSX Data"
+            label = "Qdrant" if method == "qdrant" else "MSX Data"
             return f"📖 {label} Search Results:\n\n{context}", "knowledge_base", refs
     except Exception as e:
         print(f"⚠️ RAG search error: {e}")
