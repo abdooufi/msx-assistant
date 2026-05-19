@@ -33,16 +33,31 @@ def _select_model(context: Optional[str], message: str) -> str:
     return settings.localai_model
 
 
+_MAX_CONTEXT_CHARS = 6000  # keep prompt manageable for the 7b model
+
+
+def _truncate_context(context: str) -> str:
+    if len(context) <= _MAX_CONTEXT_CHARS:
+        return context
+    truncated = context[:_MAX_CONTEXT_CHARS]
+    # cut at last newline to avoid mid-sentence truncation
+    last_nl = truncated.rfind("\n")
+    if last_nl > _MAX_CONTEXT_CHARS // 2:
+        truncated = truncated[:last_nl]
+    return truncated + "\n\n[... context truncated for length ...]"
+
+
 async def _call_model(model: str, messages: List[Dict]) -> str:
     payload = {
         "model": model,
         "messages": messages,
         "temperature": 0.1,
-        "max_tokens": 800,
+        "max_tokens": 600,
         "stream": False,
         "stop": ["</s>", "<|eot_id|>", "<|end_of_text|>"],
     }
-    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
+    timeout = httpx.Timeout(float(settings.localai_timeout), connect=10.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
         r = await client.post(
             f"{settings.localai_base_url}/chat/completions",
             json=payload,
@@ -64,7 +79,7 @@ async def query_localai(
             "role": "system",
             "content": (
                 "=== REAL DATA FROM MSX DATABASE AND WEBSITE ===\n"
-                f"{context}\n"
+                f"{_truncate_context(context)}\n"
                 "=== END OF DATA ===\n\n"
                 "IMPORTANT: Use ONLY the numbers above. "
                 "If a value is not listed above, say it is not available."
