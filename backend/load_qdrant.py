@@ -35,10 +35,11 @@ def split_into_chunks(text: str) -> list[str]:
 
 
 def get_embedding(text: str, model: str, base_url: str) -> list[float]:
-    url = base_url.replace("/v1", "") + "/api/embeddings"
-    r   = httpx.post(url, json={"model": model, "prompt": text}, timeout=60)
+    """OpenAI-compatible embeddings endpoint (supported by Ollama v0.1.24+)."""
+    url = base_url.rstrip("/") + "/embeddings"  # base_url already ends with /v1
+    r   = httpx.post(url, json={"model": model, "input": text}, timeout=60)
     r.raise_for_status()
-    return r.json()["embedding"]
+    return r.json()["data"][0]["embedding"]
 
 
 def load_qdrant():
@@ -75,7 +76,7 @@ def load_qdrant():
     # Probe embedding dimension from first chunk
     print(f"\n🔍 Probing embedding dimension...")
     try:
-        sample_vec = get_embedding("test", settings.embedding_model, settings.localai_base_url)
+        sample_vec = get_embedding("test", settings.embedding_model, settings.LOCALAI_BASE_URL)
         dim = len(sample_vec)
         print(f"   Embedding dimension: {dim}")
     except Exception as e:

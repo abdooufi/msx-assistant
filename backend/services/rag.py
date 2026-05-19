@@ -20,7 +20,7 @@ settings = get_settings()
 QDRANT_URL        = os.environ.get("QDRANT_URL",        settings.qdrant_url)
 QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION", settings.qdrant_collection)
 EMBEDDING_MODEL   = os.environ.get("EMBEDDING_MODEL",   settings.embedding_model)
-EMBEDDING_URL     = settings.localai_base_url.replace("/v1", "") + "/api/embeddings"
+EMBEDDING_URL     = settings.localai_base_url.rstrip("/") + "/embeddings"
 
 _qdrant_client = None
 
@@ -47,15 +47,15 @@ def _get_qdrant():
 
 
 async def _embed(text: str) -> Optional[List[float]]:
-    """Step 1 — create embedding vector via Ollama."""
+    """Step 1 — create embedding vector via Ollama (OpenAI-compatible endpoint)."""
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(
                 EMBEDDING_URL,
-                json={"model": EMBEDDING_MODEL, "prompt": text},
+                json={"model": EMBEDDING_MODEL, "input": text},
             )
             r.raise_for_status()
-            return r.json().get("embedding")
+            return r.json()["data"][0]["embedding"]
     except Exception as e:
         print(f"⚠️  Embedding error: {e}")
         return None
