@@ -32,53 +32,81 @@ def _detect_notification_query(message: str):
     return None, False
 
 
+def _format_noti_items(items: list, label: str) -> str:
+    lines = [f"📢 Recent {label} records from MSX:\n"]
+    base_url = "https://www.msx.om/"
+    for item in items[:10]:
+        sym      = item.get("symbol", "")
+        name     = item.get("LongNameEn", "")
+        ts       = item.get("NotifiTime", item.get("NotifiDateTime", ""))
+        title_en = item.get("TitleEn", "")
+        title_ar = (item.get("TitleAr") or "").strip()
+        link_en  = item.get("LinkEn", "")
+        ntype    = _NOTI_TYPE_LABELS.get(str(item.get("NotiType", "")), "")
+        full_link = (base_url + link_en) if link_en and not link_en.startswith("http") else link_en
+        lines.append(
+            f"• [{ts}] {sym} — {name}\n"
+            f"  Type: {ntype}\n"
+            f"  EN: {title_en}\n"
+            + (f"  AR: {title_ar}\n" if title_ar else "")
+            + f"  Link: {full_link}"
+        )
+    return "\n\n".join(lines)
+
+
+def _format_snap_special_trades(symbol: str, data: list) -> str:
+    lines = [f"📊 Special Trades for {symbol.upper()} (from MSX SnapSpecialTrades):\n"]
+    for item in data[:20]:
+        if not isinstance(item, dict):
+            continue
+        parts = []
+        for k in ("TradeDate", "TradeTime", "Price", "Quantity", "Value", "BuyerBroker", "SellerBroker"):
+            v = item.get(k)
+            if v not in (None, "", "0", 0):
+                parts.append(f"{k}: {v}")
+        if parts:
+            lines.append("• " + " | ".join(parts))
+    return "\n".join(lines) if len(lines) > 1 else ""
+
+
 async def _fetch_notifications_context(symbol: Optional[str], noti_type: Optional[str]) -> Optional[str]:
-    """Call GetNotificationsCenter and return formatted context filtered by symbol/type."""
-    from services.msx_api import get_notifications_center
+    """
+    Try GetNotificationsCenter first, then SnapSpecialTrades as fallback for special trade queries.
+    """
+    from services.msx_api import get_notifications_center, get_snap_special_trades
+    label = _NOTI_TYPE_LABELS.get(noti_type, "Notification") if noti_type else "Notification"
+
+    # ── Step A: GetNotificationsCenter (real-time feed) ──────────────
     try:
         items = await get_notifications_center()
-        if not items or not isinstance(items, list):
-            return None
-
-        # Filter by symbol and/or NotiType
-        filtered = items
-        if symbol:
-            sym_upper = symbol.upper()
-            filtered = [i for i in filtered if i.get("symbol", "").upper() == sym_upper]
-        if noti_type:
-            filtered = [i for i in filtered if str(i.get("NotiType", "")) == noti_type]
-
-        if not filtered:
-            # If symbol filter returns nothing, try broader match
-            if symbol:
-                filtered = items[:15] if not noti_type else [i for i in items if str(i.get("NotiType","")) == noti_type][:15]
-
-        if not filtered:
-            return None
-
-        label = _NOTI_TYPE_LABELS.get(noti_type, "Notification") if noti_type else "Notification"
-        lines = [f"📢 Recent {label} records from MSX Notifications Center:\n"]
-        for item in filtered[:10]:
-            sym  = item.get("symbol", "")
-            name = item.get("LongNameEn", "")
-            time = item.get("NotifiTime", item.get("NotifiDateTime", ""))
-            title_en = item.get("TitleEn", "")
-            title_ar = item.get("TitleAr", "")
-            link_en  = item.get("LinkEn", "")
-            ntype    = _NOTI_TYPE_LABELS.get(str(item.get("NotiType", "")), "")
-            base_url = "https://www.msx.om/"
-            full_link = base_url + link_en if link_en and not link_en.startswith("http") else link_en
-            lines.append(
-                f"• [{time}] {sym} — {name}\n"
-                f"  Type: {ntype}\n"
-                f"  EN: {title_en}\n"
-                f"  AR: {title_ar.strip()}\n"
-                f"  Link: {full_link}"
-            )
-        return "\n\n".join(lines)
+        if items and isinstance(items, list):
+            sym_upper = symbol.upper() if symbol else ""
+            # Strict filter: matching symbol + type
+            filtered = [
+                i for i in items
+                if (not sym_upper or i.get("symbol", "").upper() == sym_upper)
+                and (not noti_type or str(i.get("NotiType", "")) == noti_type)
+            ]
+            # Loose filter: type only (covers when symbol scrolled off feed)
+            if not filtered and noti_type:
+                filtered = [i for i in items if str(i.get("NotiType", "")) == noti_type][:10]
+            if filtered:
+                return _format_noti_items(filtered, label)
     except Exception as e:
-        print(f"⚠️ Notifications fetch error: {e}")
-        return None
+        print(f"⚠️ GetNotificationsCenter error: {e}")
+
+    # ── Step B: SnapSpecialTrades fallback (for special trade queries) ──
+    if noti_type == "4" and symbol:
+        try:
+            snap = await get_snap_special_trades(symbol)
+            if snap and isinstance(snap, list) and len(snap) > 0:
+                ctx = _format_snap_special_trades(symbol, snap)
+                if ctx:
+                    return ctx
+        except Exception as e:
+            print(f"⚠️ SnapSpecialTrades error: {e}")
+
+    return None
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 

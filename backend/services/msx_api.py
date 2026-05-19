@@ -3,7 +3,7 @@ MSX.om Real API Client with Redis caching.
 """
 import httpx
 import json
-from typing import Optional, Any
+from typing import Optional, Any, Union
 
 BASE = "https://www.msx.om"
 
@@ -185,8 +185,22 @@ async def get_snap_major_shareholders(symbol: str) -> Optional[Any]:
 
 async def get_notifications_center() -> Optional[Any]:
     """GET api.aspx/GetNotificationsCenter — recent news, special trades, publications."""
-    return await _cached_get("notifications", "ALL",
+    data = await _cached_get("notifications", "ALL",
                               f"{BASE}/api.aspx/GetNotificationsCenter")
+    if data is None:
+        # Some MSX endpoints only respond to POST
+        data = await _cached_post("notifications", "api.aspx/GetNotificationsCenter", {})
+    return data
+
+
+async def get_snap_special_trades(symbol: str, year: Optional[int] = None) -> Optional[Any]:
+    """POST snapshot.aspx/SnapSpecialTrades — special trades for a symbol."""
+    import datetime as _dt
+    yr = str(year or _dt.date.today().year)
+    return await _cached_post(
+        f"special_trades_{yr}", "snapshot.aspx/SnapSpecialTrades",
+        {"Symbol": symbol.upper(), "Year": yr},
+    )
 
 
 async def get_snap_ownership_structure(symbol: str) -> Optional[Any]:

@@ -52,7 +52,8 @@ TTL = {
     "dividends":    3600,  # 1 hour
     "last4years":   3600,  # 1 hour
     "last20trades":  60,    # 1 min  — trades update frequently
-    "notifications": 60,    # 1 min  — special trades/news update frequently
+    "notifications":    60,   # 1 min  — special trades/news update frequently
+    "special_trades_2026": 120,  # 2 min  — special trades for current year
     "chart":        300,   # 5 min
     "board":        86400, # 1 day  — board members rarely change
     "subsidiaries": 86400, # 1 day
