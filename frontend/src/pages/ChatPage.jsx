@@ -70,8 +70,8 @@ function StockChart({ chartData, symbol }) {
     label: d.Date
       ? (d.Date.length > 10 ? d.Date.substring(11, 16) : d.Date.substring(5))
       : '',
-    price:  d.LTP ?? d.Value ?? 0,
-    volume: d.Volume ?? 0,
+    price:  parseFloat(d.LTP ?? d.Value ?? 0) || 0,
+    volume: parseFloat(d.Volume ?? 0) || 0,
   })).filter(d => d.price > 0)
 
   if (!data.length) return (
