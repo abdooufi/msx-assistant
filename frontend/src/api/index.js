@@ -55,4 +55,11 @@ export const listUnanswered = (params) => api.get('/unanswered', { params })
 export const updateUnanswered = (id, data) => api.put(`/unanswered/${id}`, data)
 export const deleteUnanswered = (id) => api.delete(`/unanswered/${id}`)
 
+// ─── Companies (public) ───────────────────────────────────────────
+export const getCompanyChart = (symbol, period = '1m') =>
+  api.get(`/companies/chart/${symbol}`, { params: { period } })
+
+export const searchCompaniesPublic = (q) =>
+  api.get('/companies/public-search', { params: { q } })
+
 export default api

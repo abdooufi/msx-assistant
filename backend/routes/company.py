@@ -45,6 +45,23 @@ async def search_companies_endpoint(
         raise HTTPException(status_code=500, detail=f"MSSQL error: {str(e)}")
 
 
+@router.get("/public-search")
+async def public_search_companies(q: str = Query(..., min_length=1)):
+    """Public endpoint — search companies by symbol or name (no auth)."""
+    try:
+        from mssql import search_companies
+        data = await _run_sync(search_companies, q, 10)
+        return [
+            {
+                "symbol": c.get("Symbol", ""),
+                "name": c.get("LongNameEn") or c.get("ShortNameEn") or c.get("Symbol", ""),
+            }
+            for c in data if c.get("Symbol")
+        ]
+    except Exception:
+        return []
+
+
 @router.get("/lookup/{symbol}")
 async def lookup_company(symbol: str):
     """Public endpoint - get company info + latest prices."""
