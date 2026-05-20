@@ -42,12 +42,19 @@ def _unwrap(data: Any) -> Any:
     return data
 
 
+def _ep_get(ep, field: str, default=None):
+    """Read a field from either an ORM object or a plain dict."""
+    if isinstance(ep, dict):
+        return ep.get(field, default)
+    return getattr(ep, field, default)
+
+
 async def call_endpoint(ep, symbol: str = "") -> Optional[Any]:
-    url    = _substitute(getattr(ep, 'url',    ep.get('url', '')), symbol)
-    method = getattr(ep, 'method',  ep.get('method', 'GET')).upper()
-    body   = getattr(ep, 'body',    ep.get('body'))
-    extra  = getattr(ep, 'headers', ep.get('headers')) or {}
-    ep_name = getattr(ep, 'name',   ep.get('name', 'endpoint'))
+    url     = _substitute(_ep_get(ep, 'url',     ''),        symbol)
+    method  = (_ep_get(ep, 'method',  'GET') or 'GET').upper()
+    body    = _ep_get(ep, 'body')
+    extra   = _ep_get(ep, 'headers') or {}
+    ep_name = _ep_get(ep, 'name',    'endpoint')
 
     body    = _substitute(body, symbol) if body else None
     headers = {**(HEADERS_POST if method == "POST" else HEADERS_GET), **extra}
