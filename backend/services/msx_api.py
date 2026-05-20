@@ -125,8 +125,14 @@ async def get_subsidiaries(symbol: str):
                               f"{BASE}/SubsidiariesandAssociatesSnap.aspx?s={symbol.lower()}")
 
 async def get_chart_data_get(symbol: str):
-    return await _cached_get("chart", symbol,
-                              f"{BASE}/company-chart-data.aspx?t=true&s={symbol.lower()}")
+    # Try the plain URL first (matches what MSX.om uses publicly), then with t=true
+    data = await _get(f"{BASE}/company-chart-data.aspx?s={symbol.lower()}")
+    if not data:
+        data = await _get(f"{BASE}/company-chart-data.aspx?t=true&s={symbol.lower()}")
+    if data:
+        from cache import set_msx_cache
+        await set_msx_cache("chart", symbol, data)
+    return data
 
 async def get_sustainability(symbol: str, year: int = 2025, report_type: str = "E"):
     return await _cached_post("governance", "snapshot.aspx/SustainabilityReports",

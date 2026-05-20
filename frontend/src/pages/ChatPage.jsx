@@ -402,18 +402,16 @@ export default function ChatPage() {
       inputRef.current?.focus()
     }
 
-    // Append chart message once data arrives
+    // Append chart message once data arrives (even empty — StockChart shows "unavailable")
     if (chartPromise) {
       const chartRes = await chartPromise
       const chartData = chartRes?.data?.chart
-      if (chartData?.length) {
-        setMessages(prev => [...prev, {
-          role:      'chart',
-          symbol:    chartSymbol,
-          chartData,
-          timestamp: new Date(),
-        }])
-      }
+      setMessages(prev => [...prev, {
+        role:      'chart',
+        symbol:    chartSymbol,
+        chartData: Array.isArray(chartData) ? chartData : [],
+        timestamp: new Date(),
+      }])
     }
   }
 
